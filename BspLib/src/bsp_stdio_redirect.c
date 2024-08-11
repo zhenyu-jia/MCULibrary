@@ -20,7 +20,7 @@
 // 根据选择的外设和编译器选择对应的头文件
 #if (STDIO_REDIRECT_PERIPHERALS == _UART)
 #include "usart.h"
-#define STDIO_REDIRECT_UART &huart1
+#define STDIO_REDIRECT_UART huart1
 #elif (STDIO_REDIRECT_PERIPHERALS == _USB)
 #include "usbd_cdc_if.h"
 #else
