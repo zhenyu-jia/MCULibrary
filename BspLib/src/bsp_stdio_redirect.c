@@ -14,7 +14,7 @@
 #define _MDK 1
 
 // 以下两个宏按照实际情况选择
-#define STDIO_REDIRECT_PERIPHERALS _USB // _UART or _USB
+#define STDIO_REDIRECT_PERIPHERALS _UART // _UART or _USB
 #define STDIO_REDIRECT_COMPILER _GCC    // _GCC or _MDK
 
 // 根据选择的外设和编译器选择对应的头文件
