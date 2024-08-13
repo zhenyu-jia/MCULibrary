@@ -17,8 +17,8 @@
             "detail": "CMake 模板 生成 任务"
         },
         {
-            "label": "download",
             "type": "shell",
+            "label": "OpenOCD: 下载",
             "command": "openocd",
             "args": [
                 "-f",
@@ -28,7 +28,8 @@
                 "-c",
                 "program build/Debug/F103C8T6.elf verify reset exit"
             ],
-            "group": "build"
+            "group": "build",
+            "detail": "下载程序到开发板"
         }
     ]
 }
