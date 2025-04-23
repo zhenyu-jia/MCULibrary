@@ -16,8 +16,8 @@
  * - `set_log_output`：设置日志输出函数，可以替换默认的 `printf`。
  * - `log_level_get`：根据日志级别返回字符串描述，仅在调试模式下有效。
  *
- * @version 1.0.0
- * @date 2024-07-23
+ * @version 1.1.0
+ * @date 2025-04-21
  * @author [Jia Zhenyu]
  *
  * @par Example
@@ -127,9 +127,39 @@ void log_message(LOGLEVEL level, const char *fun, const int line, const char *fm
     vsnprintf(buf, sizeof(buf), fmt, arg);
     va_end(arg);
 
-    char log_buf[256];
+    char log_buf[LOG_BUF_SIZE];
+    
+#ifdef ANSI_ESCAPE_SEQUENCES
+    /* 根据日志级别添加颜色 */
+    const char *color_start = "";       // 默认没有颜色
+    const char *color_end = "\033[0m";  // 默认颜色重置
+    
+    switch (level)
+    {
+    case LOG_DEBUG:
+        color_start = "\033[34m";  // 蓝色
+        break;
+    case LOG_INFO:
+        color_start = "\033[32m";  // 绿色
+        break;
+    case LOG_WARN:
+        color_start = "\033[33m";  // 黄色
+        break;
+    case LOG_ERROR:
+        color_start = "\033[31m";  // 红色
+        break;
+    default:
+        break;
+    }
+
+    // 拼接日志消息，带颜色
+    snprintf(log_buf, sizeof(log_buf), "%s[%s] [Fun:%s Line:%d] %s%s",
+             color_start, log_level_get(level), fun, line, buf, color_end);
+#else
+    /* 没有颜色输出，直接拼接日志消息 */
     snprintf(log_buf, sizeof(log_buf), "[%s] [Fun:%s Line:%d] %s",
              log_level_get(level), fun, line, buf);
+#endif /* ANSI_ESCAPE_SEQUENCES */
 
     if (log_output)
     {
@@ -137,7 +167,7 @@ void log_message(LOGLEVEL level, const char *fun, const int line, const char *fm
     }
     else
     {
-        printf("%s", log_buf);
+        LOG_PRINTF("%s", log_buf);
     }
 #endif /* _DEBUG */
 }
