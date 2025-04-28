@@ -2,8 +2,8 @@
  *******************************************************************************
  * @file    coop_sched.c
  * @author  Jia Zhenyu
- * @version V1.0.0
- * @date    2021-12-25
+ * @version V1.1.0
+ * @date    2021-12-30
  * @brief   合作式调度器实现文件
  *
  * @details 本文件实现了合作式调度器的核心逻辑，适用于多任务环境下的任务切换。
@@ -21,11 +21,13 @@
  *          | Version | Date       | Author     | Changes                  |
  *          |---------|------------|------------|--------------------------|
  *          | V1.0.0  | 2021-12-25 | Jia Zhenyu | Initial creation         |
+ *          | V1.1.0  | 2021-12-30 | Jia Zhenyu | Use linked lists         |
  *******************************************************************************
  */
 
 /* Includes -----------------------------------------------------------------*/
 #include <stdio.h>
+#include <stdlib.h>
 #include "coop_sched.h"
 
 /* 公用变量定义 --------------------------------------------------------------*/
@@ -36,81 +38,77 @@ static void co_sch_report_warning(void); // 用来报告警告
 static void co_sch_sleep(void);          // 进入低功耗模式
 
 /* 私有变量 ------------------------------------------------------------------*/
-static CO_TASK co_sch_tasks[CO_SCH_MAX_TASKS] = {{0, 0, 0, NULL}}; // 任务队列
-static co_sch_go_to_sleep_func co_sch_go_to_sleep = NULL;          // 进入低功耗模式
-static co_sch_report_func co_sch_report_err = NULL;                // 错误报告函数指针
-static co_sch_report_func co_sch_report_warn = NULL;               // 警告报告函数指针
-static uint32_t err_code_mask = NO_ERROR_MASK;                     // 错误码掩码
-static uint32_t warn_code = NO_WARNING;                            // 警告码
-static uint8_t scheduler_running = 0;                              // 1: Running, 0: Stopped
+static CO_TASK *co_sch_tasks_head_handle = NULL;          // 任务链表的头指针
+static co_sch_go_to_sleep_func co_sch_go_to_sleep = NULL; // 进入低功耗模式
+static co_sch_report_func co_sch_report_err = NULL;       // 错误报告函数指针
+static co_sch_report_func co_sch_report_warn = NULL;      // 警告报告函数指针
+static uint32_t err_code_mask = NO_ERROR_MASK;            // 错误码掩码
+static uint32_t warn_code = NO_WARNING;                   // 警告码
+static uint8_t scheduler_running = 0;                     // 1: Running, 0: Stopped
 
 /**
- * @brief  创建一个任务
+ * @brief  创建一个任务并返回任务句柄
  *
  * @param  pFunction 任务函数指针
  * @param  delay 任务首次执行前的延迟时间（范围：0 到 UINT16_MAX）
  * @param  cycle 任务循环执行的周期（范围：0 到 UINT16_MAX，0 表示单次任务）
  *
- * @retval 如果函数指针无效或任务队列已满，则返回相应的错误码；否则返回任务在队列中的索引
+ * @retval 返回新创建任务的句柄，如果创建失败则返回 NULL
  */
-int co_sch_create_task(const void (*pFunction)(void), const uint16_t delay, const uint16_t cycle)
+CO_TASK *co_sch_create_task(const void (*pFunction)(void), const uint16_t delay, const uint16_t cycle)
 {
-    int index = 0;
-
-    /* 检查任务函数指针是否有效 */
-    if (pFunction == NULL)
+    // 初始化新的任务
+    CO_TASK *new_task = (CO_TASK *)malloc(sizeof(CO_TASK));
+    if (new_task == NULL)
     {
-        return ERROR_INVALID_PARAM; // 无效的函数指针
+        return NULL; // 内存分配失败
     }
 
-    /* 首先在任务队列中找到一个空隙（如果有的话） */
-    while ((index < CO_SCH_MAX_TASKS) && (co_sch_tasks[index].pTask != NULL))
+    new_task->runFlag = 0;
+    new_task->delay = delay;
+    new_task->cycle = cycle;
+    new_task->pTask = pFunction;
+    new_task->next = NULL;
+
+    // 将新任务添加到任务队列
+    CO_TASK **current = &co_sch_tasks_head_handle;
+    while (*current != NULL)
     {
-        index++;
+        current = &((*current)->next);
     }
+    *current = new_task;
 
-    /* 是否已经到达队列的结尾？ */
-    if (index >= CO_SCH_MAX_TASKS)
-    {
-        return ERROR_TASK_QUEUE_FULL; // 任务队列已满
-    }
-
-    /* 初始化任务 */
-    co_sch_tasks[index].runFlag = 0;
-    co_sch_tasks[index].delay = delay;
-    co_sch_tasks[index].cycle = cycle;
-    co_sch_tasks[index].pTask = pFunction;
-
-    return index; // 返回任务索引，以便以后删除
+    return new_task; // 返回新任务的句柄
 }
 
 /**
  * @brief  删除指定任务
  *
- * @param  task_index 任务索引，用于标识要删除的任务
- * @retval 如果任务成功删除，返回删除任务的任务索引；
- *         如果任务索引无效，返回 ERROR_INVALID_PARAM；
- *         如果任务未找到，返回 ERROR_TASK_NOT_FOUND。
+ * @param  task_handle 任务句柄，用于标识要删除的任务
+ * @retval 如果删除成功返回 0，失败返回 -1
  */
-int co_sch_delete_task(const int task_index)
+int co_sch_delete_task(const CO_TASK *task_handle)
 {
-    if (task_index < 0 || task_index >= CO_SCH_MAX_TASKS)
+    // 检查任务链表是否为空
+    if (co_sch_tasks_head_handle == NULL || task_handle == NULL)
     {
-        return ERROR_INVALID_PARAM; // 任务索引无效
+        return -1; // 任务链表为空或任务句柄无效，删除失败
     }
 
-    if (co_sch_tasks[task_index].pTask == NULL)
+    CO_TASK **current = &co_sch_tasks_head_handle;
+    while (*current != NULL)
     {
-        return ERROR_TASK_NOT_FOUND; // 任务未找到（无法删除）
+        if (*current == task_handle)
+        {
+            CO_TASK *to_delete = *current;
+            *current = (*current)->next;
+            free(to_delete);
+            return 0;
+        }
+        current = &((*current)->next);
     }
 
-    /* 删除任务 */
-    co_sch_tasks[task_index].pTask = NULL;
-    co_sch_tasks[task_index].delay = 0;
-    co_sch_tasks[task_index].cycle = 0;
-    co_sch_tasks[task_index].runFlag = 0;
-
-    return task_index; // 返回任务索引
+    return -1; // 未找到任务，删除失败
 }
 
 /**
@@ -132,27 +130,23 @@ void co_sch_update(void)
         return;
     }
 
-    for (int index = 0; index < CO_SCH_MAX_TASKS; index++)
+    for (CO_TASK *current = co_sch_tasks_head_handle; current != NULL; current = current->next)
     {
-        /* 检查任务是否已经准备好运行 */
-        if (co_sch_tasks[index].pTask != NULL)
+        if (current->delay > 0)
         {
-            if (co_sch_tasks[index].delay > 0)
+            current->delay--; // 任务还未准备好，延时减 1
+        }
+        else
+        {
+            if (current->runFlag < UINT16_MAX)
             {
-                co_sch_tasks[index].delay--; // 任务还未准备好，延时减 1
+                current->runFlag++;
             }
-            else
-            {
-                if (co_sch_tasks[index].runFlag < UINT16_MAX)
-                {
-                    co_sch_tasks[index].runFlag++; // "runFlag" 标志加 1
-                }
 
-                if (co_sch_tasks[index].cycle > 0)
-                {
-                    /* 调度周期的任务再次运行 */
-                    co_sch_tasks[index].delay = co_sch_tasks[index].cycle - 1; // 由于这行代码也会占用一个周期，所以这里要减 1
-                }
+            if (current->cycle)
+            {
+                // 调度定期的任务再次运行
+                current->delay = current->cycle - 1; // 由于这行代码也会占用一个周期，所以这里要减 1
             }
         }
     }
@@ -169,27 +163,30 @@ void co_sch_update(void)
  */
 void co_sch_dispatch_tasks(void)
 {
-    int index;
+    CO_TASK **current = &co_sch_tasks_head_handle;
 
     if (!scheduler_running)
     {
         return;
     }
 
-    /* 调度（运行）下一个任务（如果有任务就绪） */
-    for (index = 0; index < CO_SCH_MAX_TASKS; index++)
+    while (*current != NULL)
     {
-        if (co_sch_tasks[index].runFlag > 0 && co_sch_tasks[index].pTask != NULL)
+        if ((*current)->runFlag > 0 && (*current)->pTask != NULL)
         {
-            (*co_sch_tasks[index].pTask)(); // 运行任务
-            co_sch_tasks[index].runFlag--;  // 复位/降低 runFlag 标志
+            (*current)->pTask();   // 运行任务
+            (*current)->runFlag--; // 复位/降低 runFlag 标志
 
-            /* 如果是单次任务，将它从列表中删除 */
-            if (co_sch_tasks[index].cycle == 0)
+            // 如果是单次任务，将它从列表中删除
+            if ((*current)->cycle == 0)
             {
-                co_sch_delete_task(index);
+                CO_TASK *to_delete = *current;
+                *current = (*current)->next; // 更新链表指针
+                free(to_delete);             // 释放已删除任务的内存
+                continue;                    // 直接进入下一次循环，避免更新指针
             }
         }
+        current = &((*current)->next); // 更新指向下一个任务的指针
     }
 
 #ifdef CO_SCH_REPORT_ERRORS // 报告错误
@@ -213,12 +210,11 @@ void co_sch_dispatch_tasks(void)
  */
 void co_sch_start(void)
 {
-    /* 如果任务数为 0，启动失败 */
-    if (co_sch_task_count() <= 0)
+    // 如果链表为空或任务数为 0，启动失败
+    if (co_sch_tasks_head_handle == NULL || co_sch_task_count() <= 0)
     {
         return;
     }
-
     scheduler_running = 1;
 }
 
@@ -319,24 +315,15 @@ static void co_sch_sleep(void)
 /**
  * @brief  计算任务数量
  *
- * @param  None
- * @retval 当前任务数量
+ * @return  当前任务数量
  */
 int co_sch_task_count(void)
 {
-    int index = 0;
     int count = 0;
-
-    while (index < CO_SCH_MAX_TASKS)
+    for (CO_TASK *current = co_sch_tasks_head_handle; current != NULL; current = current->next)
     {
-        if (co_sch_tasks[index].pTask != NULL)
-        {
-            count++;
-        }
-
-        index++;
+        count++;
     }
-
     return count;
 }
 
@@ -462,18 +449,13 @@ uint32_t get_warning_code(void)
  */
 void print_task_list(const char *label)
 {
-    int index = 0;
-
     printf("%s:\n", label);
-    while (index < CO_SCH_MAX_TASKS)
+    CO_TASK *current = co_sch_tasks_head_handle;
+    while (current != NULL)
     {
-        if (co_sch_tasks[index].pTask != NULL)
-        {
-            printf("Task at %d: delay=%u, cycle=%u, runFlag=%u, pTask=%p\n", index,
-                   co_sch_tasks[index].delay, co_sch_tasks[index].cycle, co_sch_tasks[index].runFlag,
-                   (void *)co_sch_tasks[index].pTask);
-        }
-
-        index++;
+        printf("Task at %p: delay=%u, cycle=%u, runFlag=%u, pTask=%p, next=%p\n",
+               (void *)current, current->delay, current->cycle, current->runFlag,
+               (void *)current->pTask, (void *)current->next);
+        current = current->next;
     }
 }

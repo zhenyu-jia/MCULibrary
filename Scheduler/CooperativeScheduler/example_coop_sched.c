@@ -1,10 +1,236 @@
+// 测试 1、基本功能测试
+// #include <stdio.h>
+// #include "coop_sched.h"
+
+// void task1(void)
+// {
+//     printf("Task 1 is running\n");
+// }
+
+// void task2(void)
+// {
+//     printf("Task 2 is running\n");
+// }
+
+// int main(void)
+// {
+//     CO_TASK *task1_handle = co_sch_create_task(task1, 1, 0); // 单次任务，延迟 1
+//     CO_TASK *task2_handle = co_sch_create_task(task2, 2, 5); // 周期任务，延迟 2，周期 5
+
+//     co_sch_start();
+
+//     for (int i = 0; i < 10; i++)
+//     {
+//         printf("\nTick %d\n", i);
+//         co_sch_update();
+//         co_sch_dispatch_tasks();
+//     }
+
+//     co_sch_stop();
+
+//     return 0;
+// }
+
+// 测试 2、任务删除测试
+// #include <stdio.h>
+// #include "coop_sched.h"
+
+// void task1(void)
+// {
+//     printf("Task 1 is running\n");
+// }
+
+// void task2(void)
+// {
+//     printf("Task 2 is running\n");
+// }
+
+// int main(void)
+// {
+//     CO_TASK *task1_handle = co_sch_create_task(task1, 1, 3); // 单次任务
+//     CO_TASK *task2_handle = co_sch_create_task(task2, 2, 5); // 周期任务
+
+//     co_sch_start();
+
+//     for (int i = 0; i < 10; i++)
+//     {
+//         printf("\nTick %d\n", i);
+//         co_sch_update();
+//         co_sch_dispatch_tasks();
+
+//         if (i == 5)
+//         { // 在第 5 个 tick 时删除任务 1
+//             if (co_sch_delete_task(task1_handle) == 0)
+//             {
+//                 printf("Successfully deleted task 1\n");
+//             }
+//             else
+//             {
+//                 printf("Failed to delete task 1\n");
+//             }
+//         }
+//     }
+
+//     co_sch_stop();
+
+//     return 0;
+// }
+
+// 测试 3、低功耗模式测试
+// #include <stdio.h>
+// #include "coop_sched.h"
+
+// void task1(void)
+// {
+//     printf("Task 1 is running\n");
+// }
+
+// void go_to_sleep(void)
+// {
+//     printf("System is going to sleep\n");
+// }
+
+// int main(void)
+// {
+//     set_go_to_sleep_func(go_to_sleep);
+
+//     co_sch_create_task(task1, 1, 0);
+//     co_sch_start();
+
+//     for (int i = 0; i < 5; i++)
+//     {
+//         printf("\nTick %d\n", i);
+//         co_sch_update();
+//         co_sch_dispatch_tasks();
+//     }
+
+//     co_sch_stop();
+
+//     return 0;
+// }
+
+// 测试 4、边界条件测试
+// #include <stdio.h>
+// #include "coop_sched.h"
+
+// // 全局错误报告函数
+// void error_report(uint32_t err)
+// {
+//     printf("Error reported: %d\n", err);
+// }
+
+// int main(void)
+// {
+//     // 设置错误报告函数
+//     set_error_report_func(error_report);
+
+//     printf("Starting scheduler with no tasks\n");
+//     co_sch_start();
+//     set_error_code(5);
+//     printf("No tasks to dispatch\n");
+
+//     for (int i = 0; i < 5; i++)
+//     {
+//         printf("\nTick %d\n", i);
+//         co_sch_update();
+//         co_sch_dispatch_tasks();
+//     }
+
+//     printf("err code = %d\n", get_error_code(5));
+//     printf("err code mask = %d\n", get_error_code_mask());
+//     co_sch_stop();
+
+//     return 0;
+// }
+
+// 测试 5、综合测试
+// #include <stdio.h>
+// #include "coop_sched.h"
+
+// // 全局错误报告函数
+// void error_report(uint32_t err)
+// {
+//     printf("Error reported: %d\n", err);
+// }
+
+// // 低功耗模式函数
+// void go_to_sleep(void)
+// {
+//     printf("System is going to sleep\n");
+// }
+
+// // 测试任务 1
+// void task1(void)
+// {
+//     printf("Task 1 is running\n");
+// }
+
+// // 测试任务 2
+// void task2(void)
+// {
+//     printf("Task 2 is running\n");
+// }
+
+// // 综合测试程序
+// int main(void)
+// {
+//     // 设置错误报告和低功耗模式函数
+//     set_error_report_func(error_report);
+//     set_go_to_sleep_func(go_to_sleep);
+
+//     // 创建任务
+//     CO_TASK *task1_handle = co_sch_create_task(task1, 1, 0); // 单次任务，延迟 1
+//     CO_TASK *task2_handle = co_sch_create_task(task2, 2, 5); // 周期任务，延迟 2，周期 5
+
+//     // 启动调度器
+//     co_sch_start();
+
+//     // 打印初始任务列表
+//     print_task_list("Initial task list");
+
+//     // 运行调度器若干 tick
+//     for (int i = 0; i < 10; i++)
+//     {
+//         printf("\nTick %d\n", i);
+//         co_sch_update();
+//         co_sch_dispatch_tasks();
+
+//         // 打印当前任务列表
+//         print_task_list("Current task list");
+
+//         // 删除任务 1
+//         if (i == 5)
+//         { // 在第 5 个 tick 时删除任务 1
+//             if (co_sch_delete_task(task1_handle) == 0)
+//             {
+//                 printf("Successfully deleted task 1\n");
+//             }
+//             else
+//             {
+//                 printf("Failed to delete task 1\n");
+//             }
+//         }
+//     }
+
+//     // 检查任务计数
+//     printf("Task count before stopping: %d\n", co_sch_task_count());
+//     // 停止调度器
+//     co_sch_stop();
+
+//     // 再次检查任务计数
+//     printf("Task count after stopping: %d\n", co_sch_task_count());
+
+//     return 0;
+// }
+
+// 测试 6、错误和警告报告测试
 #include <stdio.h>
 #include "coop_sched.h"
 
 static int ticks = 0;
-static int task1_index = -1;
-static int task2_index = -1;
-static int task3_index = -1;
+CO_TASK *task1_handle = NULL;
+CO_TASK *task2_handle = NULL;
+CO_TASK *task3_handle = NULL;
 
 // 错误报告函数
 void error_report(uint32_t error_code)
@@ -37,7 +263,7 @@ void task1(void)
     {
         print_task_list("Task List");
         printf("Task count: %d\n", co_sch_task_count());
-        if (co_sch_delete_task(task2_index) == task2_index)
+        if (co_sch_delete_task(task2_handle) == 0)
         {
             printf("Successfully deleted Task 2 at %d ticks\n", ticks);
             print_task_list("Task List");
@@ -77,11 +303,11 @@ int main()
     set_go_to_sleep_func(go_to_sleep);
 
     // 创建任务
-    task1_index = co_sch_create_task(task1, 1, 3); // 周期任务，延迟 1，周期 3
-    task2_index = co_sch_create_task(task2, 2, 5); // 周期任务，延迟 2，周期 5
-    task3_index = co_sch_create_task(task3, 0, 0); // 单次任务，立即执行
+    task1_handle = co_sch_create_task(task1, 1, 3); // 周期任务，延迟 1，周期 3
+    task2_handle = co_sch_create_task(task2, 2, 5); // 周期任务，延迟 2，周期 5
+    task3_handle = co_sch_create_task(task3, 0, 0); // 单次任务，立即执行
 
-    if (task1_index < 0 || task2_index < 0 || task3_index < 0)
+    if (task1_handle == NULL || task2_handle == NULL || task3_handle == NULL)
     {
         printf("Failed to create tasks\n");
         return -1;

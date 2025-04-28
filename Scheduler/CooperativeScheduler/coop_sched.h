@@ -2,8 +2,8 @@
  *******************************************************************************
  * @file    coop_sched.h
  * @author  Jia Zhenyu
- * @version V1.0.0
- * @date    2021-12-25
+ * @version V1.1.0
+ * @date    2021-12-30
  * @brief   合作式调度器头文件
  *
  * @details 本文件提供了合作式调度器的接口，适用于多任务环境下的任务切换。
@@ -19,7 +19,6 @@
  *          This software is licensed under the MIT License.
  *
  * @configuration
- *          - CO_SCH_MAX_TASKS: 最大任务数，可通过宏定义调整。
  *          - CO_SCH_REPORT_ERRORS: 启用错误报告，注释掉以禁用。
  *          - CO_SCH_REPORT_WARNINGS: 启用警告报告，注释掉以禁用。
  *          - CO_SCH_GO_TO_SLEEP: 允许系统进入低功耗模式，注释掉以禁用。
@@ -39,12 +38,6 @@ extern "C"
 #include <stdint.h>
 
 /* 公用的常数 ---------------------------------------------------------------*/
-/**
- * @brief 任务最大数量
- * @note 每个新建项目都必须修改此值
- */
-#define CO_SCH_MAX_TASKS 10U
-
 /**
  * @brief 启用错误报告
  * @note 注释掉以禁用错误报告
@@ -83,15 +76,10 @@ extern "C"
 /* 警告码，是数值，不是掩码 */
 #define NO_WARNING 0U
 
-/* 错误码 */
-#define ERROR_TASK_QUEUE_FULL -1 // 任务队列已满
-#define ERROR_TASK_NOT_FOUND -2  // 任务未找到（无法删除）
-#define ERROR_INVALID_PARAM -3   // 无效的参数（例如无效的函数指针）
-
     /* 公用的数据类型 -----------------------------------------------------------*/
     /**
      * @brief  任务数据类型
-     * @details 每个任务的存储器的总和是 12 个字节
+     * @details 每个任务的存储器的总和是 16 个字节
      */
     typedef struct __CO_TASK
     {
@@ -99,6 +87,7 @@ extern "C"
         uint16_t delay;      // 延迟（时标）
         uint16_t cycle;      // 周期（时标）
         void (*pTask)(void); // 指向任务的指针（必须是一个 "void(void)" 函数）
+        struct __CO_TASK *next;
     } CO_TASK;
 
     /**
@@ -115,8 +104,8 @@ extern "C"
     /**
      * @brief 调度器内核函数
      */
-    int co_sch_create_task(const void (*pFunction)(void), const uint16_t delay, const uint16_t cycle);
-    int co_sch_delete_task(const int task_index);
+    CO_TASK *co_sch_create_task(const void (*pFunction)(void), const uint16_t delay, const uint16_t cycle);
+    int co_sch_delete_task(const CO_TASK *task_handle);
     void co_sch_update(void);
     void co_sch_dispatch_tasks(void);
     void co_sch_start(void);

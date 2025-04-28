@@ -19,7 +19,7 @@
 - **任务管理**：支持任务的创建、删除和调度。
 - **低功耗模式**：支持进入低功耗模式。
 - **错误与警告报告**：支持错误码和警告码的设置与报告。
-- **任务队列**：支持最多 `CO_SCH_MAX_TASKS` 个任务的管理（默认值为 10）。
+- **任务队列**：支持动态任务链表管理，任务数量仅受限于系统内存。
 
 ---
 
@@ -46,19 +46,19 @@
 
 ### 任务管理
 
-- `int co_sch_create_task(const void (*pFunction)(void), const uint16_t delay, const uint16_t cycle)`
+- `CO_TASK *co_sch_create_task(const void (*pFunction)(void), const uint16_t delay, const uint16_t cycle)`
   - **功能**：创建一个任务。
   - **参数**：
     - `pFunction`：任务函数指针。
     - `delay`：任务首次执行前的延迟时间。
     - `cycle`：任务循环执行的周期，0 表示单次任务。
-  - **返回值**：任务索引，或错误码（如 `ERROR_TASK_QUEUE_FULL`）。
+  - **返回值**：任务句柄，创建失败返回 `NULL`。
 
-- `int co_sch_delete_task(const int task_index)`
+- `int co_sch_delete_task(const CO_TASK *task_handle)`
   - **功能**：删除指定任务。
   - **参数**：
-    - `task_index`：任务索引。
-  - **返回值**：任务索引，或错误码（如 `ERROR_TASK_NOT_FOUND`）。
+    - `task_handle`：任务句柄。
+  - **返回值**：成功返回 `0`，失败返回 `-1`。
 
 - `int co_sch_task_count(void)`
   - **功能**：获取当前任务数量。
@@ -115,7 +115,6 @@
 
 您可以通过修改 `coop_sched.h` 文件中的宏定义调整调度器的行为：
 
-- `CO_SCH_MAX_TASKS`：设置最大任务数。
 - `CO_SCH_REPORT_ERRORS`：启用或禁用错误报告。
 - `CO_SCH_REPORT_WARNINGS`：启用或禁用警告报告。
 - `CO_SCH_GO_TO_SLEEP`：启用或禁用低功耗模式。
@@ -133,6 +132,7 @@
 
 ## 更新记录
 
+- **v1.1.0**（2021-12-30）：使用链表实现任务队列，支持动态任务管理。
 - **v1.0.0**（2021-12-25）：初始版本发布。
 
 ---
@@ -140,8 +140,8 @@
 ## 贡献者
 
 - **作者**: Jia Zhenyu
-- **日期**: 2021-12-25
-- **版本**: V1.0.0
+- **日期**: 2021-12-30
+- **版本**: V1.1.0
 
 ---
 
