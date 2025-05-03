@@ -2,7 +2,7 @@
  *******************************************************************************
  * @file    hyb_sched.h
  * @author  Jia Zhenyu
- * @version V1.0.0
+ * @version V1.1.0
  * @date    2021-12-31
  * @brief   混合式调度器头文件
  *
@@ -20,6 +20,7 @@
  *          This software is licensed under the MIT License.
  *
  * @configuration
+ *          - HYB_SCH_MAX_EVENTS: 事件数量的最大值。
  *          - HYB_SCH_REPORT_ERRORS: 启用错误报告，注释掉以禁用。
  *          - HYB_SCH_REPORT_WARNINGS: 启用警告报告，注释掉以禁用。
  *          - HYB_SCH_GO_TO_SLEEP: 允许系统进入低功耗模式，注释掉以禁用。
@@ -39,6 +40,11 @@ extern "C"
 #include <stdint.h>
 
 /* 公用的常数 ---------------------------------------------------------------*/
+/**
+ * @brief 事件数量的最大值
+ */
+#define HYB_SCH_MAX_EVENTS 16U
+
 /**
  * @brief 启用错误报告
  * @note 注释掉以禁用错误报告
@@ -93,6 +99,15 @@ extern "C"
     } HYB_TASK;
 
     /**
+     * @brief  事件数据类型
+     */
+    typedef struct
+    {
+        void (*pEvent)(void *);
+        void *arg;
+    } HYB_EVENT;
+
+    /**
      * @brief  进入低功耗模式的函数指针类型
      */
     typedef void (*hyb_sch_go_to_sleep_func)(void);
@@ -109,7 +124,9 @@ extern "C"
     HYB_TASK *hyb_sch_create_task(const void (*pFunction)(void), const uint16_t delay, const uint16_t cycle, const uint8_t coopFlag);
     int hyb_sch_delete_task(const HYB_TASK *task_handle);
     void hyb_sch_update(void);
-    void hyb_sch_dispatch_tasks(void);
+    int hyb_sch_post_event(const void (*pFunction)(void *), void *arg);
+    int hyb_sch_post_event_from_isr(const void (*pFunction)(void *), void *arg);
+    void hyb_sch_run(void);
     void hyb_sch_start(void);
     void hyb_sch_stop(void);
     int hyb_sch_task_count(void);

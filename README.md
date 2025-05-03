@@ -87,6 +87,7 @@ MCULibrary 是一个模块化的嵌入式软件库，包含多个功能模块，
 - **2021-12-30**: 发布 `CooperativeScheduler` 模块 `V1.1.0`，使用链表实现任务队列，支持动态任务管理。
 - **2021-12-31**: 发布 `HybridScheduler` 模块 `V1.0.0`。
 - **2021-12-31**: 发布 `CooperativeScheduler` 模块 `V1.2.0`，添加事件处理功能。
+- **2021-12-31**: 添加 `HybridScheduler` 模块 `V1.1.0`，添加事件处理功能。
 
 ### Utils
 
