@@ -2,8 +2,8 @@
  *******************************************************************************
  * @file    coop_sched.c
  * @author  Jia Zhenyu
- * @version V1.1.0
- * @date    2021-12-30
+ * @version V1.2.0
+ * @date    2021-12-31
  * @brief   合作式调度器实现文件
  *
  * @details 本文件实现了合作式调度器的核心逻辑，适用于多任务环境下的任务切换。
@@ -22,6 +22,7 @@
  *          |---------|------------|------------|--------------------------|
  *          | V1.0.0  | 2021-12-25 | Jia Zhenyu | Initial creation         |
  *          | V1.1.0  | 2021-12-30 | Jia Zhenyu | Use linked lists         |
+ *          | V1.2.0  | 2021-12-31 | Jia Zhenyu | Add event queue          |
  *******************************************************************************
  */
 
@@ -33,12 +34,17 @@
 /* 公用变量定义 --------------------------------------------------------------*/
 
 /* 私有函数原型 --------------------------------------------------------------*/
-static void co_sch_report_error(void);   // 用来报告错误
-static void co_sch_report_warning(void); // 用来报告警告
-static void co_sch_sleep(void);          // 进入低功耗模式
+static void co_sch_report_error(void);    // 用来报告错误
+static void co_sch_report_warning(void);  // 用来报告警告
+static void co_sch_sleep(void);           // 进入低功耗模式
+static void co_sch_dispatch_tasks(void);  // 调度任务函数
+static void co_sch_dispatch_events(void); // 调度事件函数
 
 /* 私有变量 ------------------------------------------------------------------*/
 static CO_TASK *co_sch_tasks_head_handle = NULL;          // 任务链表的头指针
+static CO_EVENT co_event_queue[CO_SCH_MAX_EVENTS];            // 事件队列
+static volatile uint8_t evt_front = 0;                    // 事件队列的前指针
+static volatile uint8_t evt_rear = 0;                     // 事件队列的后指针
 static co_sch_go_to_sleep_func co_sch_go_to_sleep = NULL; // 进入低功耗模式
 static co_sch_report_func co_sch_report_err = NULL;       // 错误报告函数指针
 static co_sch_report_func co_sch_report_warn = NULL;      // 警告报告函数指针
@@ -153,22 +159,14 @@ void co_sch_update(void)
 }
 
 /**
- * @brief  调度函数
- *
- * 当一个任务（函数）需要运行时，co_sch_dispatch_tasks() 将运行它
- * 该函数在主循环中被调用
+ * @brief  调度任务函数
  *
  * @param  None
  * @retval None
  */
-void co_sch_dispatch_tasks(void)
+static void co_sch_dispatch_tasks(void)
 {
     CO_TASK **current = &co_sch_tasks_head_handle;
-
-    if (!scheduler_running)
-    {
-        return;
-    }
 
     while (*current != NULL)
     {
@@ -200,6 +198,79 @@ void co_sch_dispatch_tasks(void)
 #ifdef CO_SCH_GO_TO_SLEEP // 进入低功耗模式
     co_sch_sleep();
 #endif /* CO_SCH_GO_TO_SLEEP */
+}
+
+/**
+ * @brief  发布事件到事件队列
+ *
+ * @param  pFunction 事件处理函数指针
+ * @param  arg  传递给事件处理函数的参数
+ * @retval 0: 成功，-1: 失败（队列已满）
+ */
+int co_sch_post_event(const void (*pFunction)(void *), void *arg)
+{
+    uint8_t next = (evt_rear + 1) % CO_SCH_MAX_EVENTS;
+
+    if (next == evt_front)
+    {
+        return -1; // 队列已满，无法添加事件
+    }
+    co_event_queue[evt_rear].pEvent = pFunction;
+    co_event_queue[evt_rear].arg = arg;
+    evt_rear = next;
+    return 0;
+}
+
+/**
+ * @brief  发布事件到事件队列（中断安全版本）
+ *
+ * @param  pFunction 事件处理函数指针
+ * @param  arg  传递给事件处理函数的参数
+ * @retval 0: 成功，-1: 失败（队列为空）
+ */
+int co_sch_post_event_from_isr(const void (*pFunction)(void *), void *arg)
+{
+    return co_sch_post_event(pFunction, arg); // 简化处理（无锁）；可根据平台添加禁中断保护
+}
+
+/**
+ * @brief  调度事件函数
+ *
+ * @param  None
+ * @retval None
+ */
+static void co_sch_dispatch_events(void)
+{
+    // 处理事件队列
+    while (evt_front != evt_rear)
+    {
+        CO_EVENT evt = co_event_queue[evt_front];
+        evt_front = (evt_front + 1) % CO_SCH_MAX_EVENTS;
+
+        if (evt.pEvent != NULL)
+        {
+            evt.pEvent(evt.arg);
+        }
+    }
+}
+
+/**
+ * @brief  调度器运行函数
+ *
+ * @note   该函数在主循环中被调用，负责调度任务和事件。
+ *         如果调度器未运行，则不会执行任何操作。
+ *
+ * @param  None
+ * @retval None
+ */
+void co_sch_run(void)
+{
+    // 运行调度器
+    if (scheduler_running)
+    {
+        co_sch_dispatch_tasks();  // 调度任务
+        co_sch_dispatch_events(); // 调度事件
+    }
 }
 
 /**

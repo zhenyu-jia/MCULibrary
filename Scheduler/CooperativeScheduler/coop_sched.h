@@ -2,8 +2,8 @@
  *******************************************************************************
  * @file    coop_sched.h
  * @author  Jia Zhenyu
- * @version V1.1.0
- * @date    2021-12-30
+ * @version V1.2.0
+ * @date    2021-12-31
  * @brief   合作式调度器头文件
  *
  * @details 本文件提供了合作式调度器的接口，适用于多任务环境下的任务切换。
@@ -19,6 +19,7 @@
  *          This software is licensed under the MIT License.
  *
  * @configuration
+ *          - CO_SCH_MAX_EVENTS: 事件数量的最大值。
  *          - CO_SCH_REPORT_ERRORS: 启用错误报告，注释掉以禁用。
  *          - CO_SCH_REPORT_WARNINGS: 启用警告报告，注释掉以禁用。
  *          - CO_SCH_GO_TO_SLEEP: 允许系统进入低功耗模式，注释掉以禁用。
@@ -38,6 +39,11 @@ extern "C"
 #include <stdint.h>
 
 /* 公用的常数 ---------------------------------------------------------------*/
+/**
+ * @brief 事件数量的最大值
+ */
+#define CO_SCH_MAX_EVENTS 16U
+
 /**
  * @brief 启用错误报告
  * @note 注释掉以禁用错误报告
@@ -91,6 +97,15 @@ extern "C"
     } CO_TASK;
 
     /**
+     * @brief  事件数据类型
+     */
+    typedef struct
+    {
+        void (*pEvent)(void *);
+        void *arg;
+    } CO_EVENT;
+
+    /**
      * @brief  进入低功耗模式的函数指针类型
      */
     typedef void (*co_sch_go_to_sleep_func)(void);
@@ -107,7 +122,9 @@ extern "C"
     CO_TASK *co_sch_create_task(const void (*pFunction)(void), const uint16_t delay, const uint16_t cycle);
     int co_sch_delete_task(const CO_TASK *task_handle);
     void co_sch_update(void);
-    void co_sch_dispatch_tasks(void);
+    int co_sch_post_event(const void (*pFunction)(void *), void *arg);
+    int co_sch_post_event_from_isr(const void (*pFunction)(void *), void *arg);
+    void co_sch_run(void);
     void co_sch_start(void);
     void co_sch_stop(void);
     int co_sch_task_count(void);
