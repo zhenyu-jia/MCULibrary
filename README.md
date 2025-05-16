@@ -24,11 +24,15 @@ MCULibrary 是一个模块化的嵌入式软件库，包含多个功能模块，
   - **usb**：支持 USB 重新枚举。
   - **multifunc_button**：多功能按键代码及示例。
   - **slow_pwm**：低速 PWM 代码及示例。
+  - **at24cxx**：EEPROM 驱动。
+  - **ap3216c**：红外/光照/接近传感器驱动。
 - **目录结构**：
   - `button/`：按键代码及示例。
   - `usb/`：USB 重新枚举代码及示例。
   - `multifunc_button/`：多功能按键代码及示例。
   - `slow_pwm/`：低速 PWM 代码及示例。
+  - `at24cxx/`：EEPROM 代码及示例。
+  - `ap3216c/`：AP3216C 代码及示例。
 
 ### Scheduler
 
@@ -36,11 +40,11 @@ MCULibrary 是一个模块化的嵌入式软件库，包含多个功能模块，
 - **子模块**：
   - **CooperativeScheduler**：实现合作式任务调度，适用于简单的单线程任务管理。
   - **HybridScheduler**：实现混合式任务调度。
-  - **Loopie**：是一个轮询系统，并且加入了事件处理机制。
+  - **Loopie**：轮询与事件系统。
 - **目录结构**：
   - `CooperativeScheduler/`：合作式调度器代码及示例。
   - `HybridScheduler/`：混合式调度器代码及示例。
-  - `Loopie/`：轮询系统代码及示例。
+  - `Loopie/`：轮询系统及示例。
 
 ### Utils
 
@@ -84,6 +88,8 @@ MCULibrary 是一个模块化的嵌入式软件库，包含多个功能模块，
 - **2024-07-23**: 添加 `usb` 模块 `V1.0.0`。
 - **2024-07-30**: 添加 `multifunc_button` 模块 `V1.0.0`。
 - **2024-07-31**: 添加 `slow_pwm` 模块 `V1.0.0`。
+- **2024-07-30**: 发布 `at24cxx` 模块 V1.0.0
+- **2024-08-02**: 发布 `ap3216c` 模块 V1.0.0
 
 ### Scheduler
 
