@@ -36,9 +36,11 @@ MCULibrary 是一个模块化的嵌入式软件库，包含多个功能模块，
 - **子模块**：
   - **CooperativeScheduler**：实现合作式任务调度，适用于简单的单线程任务管理。
   - **HybridScheduler**：实现混合式任务调度。
+  - **Loopie**：是一个轮询系统，并且加入了事件处理机制。
 - **目录结构**：
   - `CooperativeScheduler/`：合作式调度器代码及示例。
   - `HybridScheduler/`：混合式调度器代码及示例。
+  - `Loopie/`：轮询系统代码及示例。
 
 ### Utils
 
@@ -90,6 +92,7 @@ MCULibrary 是一个模块化的嵌入式软件库，包含多个功能模块，
 - **2021-12-31**: 发布 `HybridScheduler` 模块 `V1.0.0`。
 - **2021-12-31**: 发布 `CooperativeScheduler` 模块 `V1.2.0`，添加事件处理功能。
 - **2021-12-31**: 添加 `HybridScheduler` 模块 `V1.1.0`，添加事件处理功能。
+- **2024-08-01**: 添加 `Loopie` 模块 `V1.0.0`。
 
 ### Utils
 
