@@ -3,7 +3,7 @@
  * @brief   事件扩展模块头文件，声明事件标志与带回调的事件标志相关结构体及操作函数
  * @author  Jia Zhenyu
  * @date    2024-08-01
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 #ifndef __LOOPIE_EVENT_EX_H__
@@ -19,12 +19,12 @@ extern "C"
 
     typedef struct
     {
-        volatile uint8_t flag[(SCH_MAX_EVENT_FLAG + 7) / 8];
+        volatile uint8_t flag[(SCH_EVENT_MAX_FLAG + 7) / 8];
     } EVENT_FLAG;
 
     typedef struct
     {
-        volatile uint8_t flag[(SCH_MAX_EVENT_FLAG_CB + 7) / 8];
+        volatile uint8_t flag[(SCH_EVENT_MAX_FLAG_CB + 7) / 8];
         void (*callback)(uint32_t);
     } EVENT_FLAG_CB;
 

@@ -3,176 +3,144 @@
  * @brief   任务管理模块，实现任务的创建、删除、挂起、恢复、调度等功能
  * @author  Jia Zhenyu
  * @date    2024-08-01
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 #include "loopie_task.h"
 #include "loopie_config.h"
-#include "loopie_scheduler.h"
+#include "loopie_critical.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-static TASK *task_list = NULL;             // 任务链表
-static volatile int task_count = 0;        // 当前任务数量
-extern uint32_t (*get_system_ticks)(void); // 获取系统时间
+static TASK task_array[SCH_TASK_MAX_NUM] = {0}; // 任务数组
+static volatile int task_count = 0;             // 当前任务数量
+extern uint32_t (*get_system_ticks)(void);      // 获取系统时间
 
 /**
  * @brief 初始化
+ * @note 该函数目前不调用也没关系，只是为了程序结构完整方便后续扩展
  */
 void task_init(void)
 {
-    task_list = NULL;
+    memset(task_array, 0, sizeof(task_array));
     task_count = 0;
 }
 
 /**
- * @brief 创建任务
+ * @brief  创建任务
  * @param pTask 任务函数
  * @param arg 任务参数
- * @param priority 任务优先级
  * @param delay 任务延迟
  * @param cycle 任务周期（为 0 时表示为单次任务）
- * @retval 任务句柄
+ * @retval 如果函数指针无效或任务队列已满，则返回相应的错误码；否则返回任务在队列中的索引
  */
-TASK *task_create(void (*const pTask)(void *), void *const arg, const int8_t priority, const uint16_t delay, const uint16_t cycle)
+int task_create(void (*const pTask)(void *), void *const arg, const uint16_t delay, const uint16_t cycle)
 {
-    if (!pTask || priority > SCH_USER_PRIORITY_MAX || priority < SCH_USER_PRIORITY_MIN)
+    /* 检查任务函数指针是否有效 */
+    if (pTask == NULL)
     {
-        return NULL; // 参数错误
+        return ERROR_TASK_INVALID_PARAM; // 无效的函数指针
     }
 
-    // 检查是否已达到最大任务数限制
-    if (task_count >= SCH_MAX_TASK_NUM)
-    {
-        return NULL; // 达到最大任务数，不能创建新任务
-    }
-
-    TASK *new_task = (TASK *)malloc(sizeof(TASK));
-    if (!new_task)
-    {
-        return NULL; // 内存分配失败
-    }
-
-    memset(new_task, 0, sizeof(TASK));
-    new_task->pTask = pTask;
-    new_task->arg = arg;
-    new_task->priority = priority;
-    new_task->delay = delay;
-    new_task->cycle = cycle;
-
-    // 按优先级插入
     uint32_t primask = enter_critical();
 
-    TASK **current_task = &task_list;
-    while (*current_task && (*current_task)->priority <= new_task->priority)
-    {
-        current_task = &(*current_task)->next;
-    }
-    new_task->next = *current_task;
-    *current_task = new_task;
+    int index = 0;
 
+    /* 首先在任务队列中找到一个空隙（如果有的话） */
+    while ((index < SCH_TASK_MAX_NUM) && (task_array[index].pTask != NULL))
+    {
+        index++;
+    }
+
+    /* 是否已经到达队列的结尾？ */
+    if (index >= SCH_TASK_MAX_NUM)
+    {
+        return ERROR_TASK_QUEUE_FULL; // 任务队列已满
+    }
+
+    /* 初始化任务 */
+    task_array[index].pTask = pTask;
+    task_array[index].arg = arg;
+    task_array[index].runFlag = 0;
+    task_array[index].suspendFlag = 0;
+    task_array[index].delay = delay;
+    task_array[index].cycle = cycle;
+    task_array[index].last_run_time = 0;
+    task_array[index].interval = 0;
+
+    task_count++;
     exit_critical(primask);
-    task_count++; // 任务数量增加
-    return new_task;
+    return index; // 返回任务索引，以便以后删除
 }
 
 /**
- * @brief 删除任务
- * @param task_handle 任务句柄
- * @retval -1 任务句柄不能为空或任务列表为空，-2 任务句柄不存在，0 删除成功
+ * @brief  删除任务
+ * @param  task_index 任务索引，用于标识要删除的任务
+ * @retval 如果任务成功删除，返回删除任务的任务索引；
+ *         如果任务索引无效，返回 ERROR_TASK_INVALID_PARAM；
+ *         如果任务未找到，返回 ERROR_TASK_NOT_FOUND。
  */
-int task_delete(TASK *task_handle)
+int task_delete(const int task_index)
 {
-    if (!task_handle || !task_list)
+    if (task_index < 0 || task_index >= SCH_TASK_MAX_NUM)
     {
-        return -1; // 任务句柄不能为空或任务列表为空
+        return ERROR_TASK_INVALID_PARAM; // 任务索引无效
     }
 
     uint32_t primask = enter_critical();
 
-    TASK **current_task = &task_list;
-    while (*current_task)
+    if (task_array[task_index].pTask == NULL)
     {
-        if (*current_task == task_handle)
-        {
-            *current_task = task_handle->next;
-            free(task_handle);
-            task_handle = NULL; // 清空指针，避免悬空指针
-            task_count--;       // 删除任务时减少任务数量
-            exit_critical(primask);
-            return 0; // 删除成功
-        }
-        current_task = &(*current_task)->next;
+        exit_critical(primask);
+        return ERROR_TASK_NOT_FOUND; // 任务未找到（无法删除）
     }
 
+    /* 删除任务 */
+    task_array[task_index].pTask = NULL;
+    task_array[task_index].arg = 0;
+    task_array[task_index].runFlag = 0;
+    task_array[task_index].suspendFlag = 0;
+    task_array[task_index].delay = 0;
+    task_array[task_index].cycle = 0;
+    task_array[task_index].last_run_time = 0;
+    task_array[task_index].interval = 0;
+
+    task_count--;
     exit_critical(primask);
-    return -2; // 未找到
-}
-
-/**
- * @brief 安全地删除任务，并将任务句柄置为 NULL
- * @param task_handle 任务句柄的指针（注意是指针的指针）
- * @retval -1 任务句柄不能为空或任务列表为空，-2 任务句柄不存在，0 删除成功
- */
-int task_delete_safe(TASK **task_handle)
-{
-    if (!task_handle || !*task_handle || !task_list)
-    {
-        return -1; // 参数错误或任务列表为空
-    }
-
-    uint32_t primask = enter_critical();
-
-    TASK **current_task = &task_list;
-    while (*current_task)
-    {
-        if (*current_task == *task_handle)
-        {
-            *current_task = (*task_handle)->next;
-            free(*task_handle);
-            *task_handle = NULL; // 清空调用者的指针
-            task_count--;
-            exit_critical(primask);
-            return 0; // 删除成功
-        }
-        current_task = &(*current_task)->next;
-    }
-
-    exit_critical(primask);
-    return -2; // 未找到
+    return task_index;
 }
 
 /**
  * @brief 挂起任务
- * @param task_handle 任务句柄
- * @retval 0 成功，-1 失败
+ * @param task_index 任务索引
+ * @retval 0 成功 ERROR_TASK_INVALID_PARAM 失败
  */
-int task_suspend(TASK *task_handle)
+int task_suspend(const int task_index)
 {
-    if (!task_handle)
+    if (task_index < 0 || task_index >= SCH_TASK_MAX_NUM)
     {
-        return -1; // 任务句柄不能为空
+        return ERROR_TASK_INVALID_PARAM; // 任务索引无效
     }
 
-    task_handle->suspendFlag = 1;
+    task_array[task_index].suspendFlag = 1;
 
     return 0;
 }
 
 /**
  * @brief 恢复任务
- * @param task_handle 任务句柄
- * @retval 0 成功，-1 失败
+ * @param task_index 任务索引
+ * @retval 0 成功 ERROR_TASK_INVALID_PARAM 失败
  */
-int task_resume(TASK *task_handle)
+int task_resume(const int task_index)
 {
-    if (!task_handle)
+    if (task_index < 0 || task_index >= SCH_TASK_MAX_NUM)
     {
-        return -1; // 任务句柄不能为空
+        return ERROR_TASK_INVALID_PARAM; // 任务索引无效
     }
 
-    task_handle->suspendFlag = 0;
+    task_array[task_index].suspendFlag = 0;
 
     return 0;
 }
@@ -182,30 +150,29 @@ int task_resume(TASK *task_handle)
  */
 void task_update(void)
 {
-    TASK *current_task = task_list;
-
-    while (current_task)
+    for (int index = 0; index < SCH_TASK_MAX_NUM; index++)
     {
-        if (!current_task->suspendFlag)
+        /* 检查任务是否已经准备好运行 */
+        if (!task_array[index].suspendFlag && task_array[index].pTask)
         {
-            if (current_task->delay > 0)
+            if (task_array[index].delay > 0)
             {
-                current_task->delay--;
+                task_array[index].delay--; // 任务还未准备好，延时减 1
             }
             else
             {
-                if (current_task->runFlag < SCH_MAX_TASK_RUN_FLAG)
+                if (task_array[index].runFlag < SCH_TASK_MAX_RUN_FLAG) // 防止运行标志溢出
                 {
-                    current_task->runFlag++;
+                    task_array[index].runFlag++; // "runFlag" 标志加 1
                 }
 
-                if (current_task->cycle)
+                if (task_array[index].cycle > 0)
                 {
-                    current_task->delay = current_task->cycle - 1; // 由于这行代码也会占用一个周期，所以这里要减 1
+                    /* 调度周期的任务再次运行 */
+                    task_array[index].delay = task_array[index].cycle - 1; // 由于这行代码也会占用一个周期，所以这里要减 1
                 }
             }
         }
-        current_task = current_task->next;
     }
 }
 
@@ -214,33 +181,25 @@ void task_update(void)
  */
 void task_run(void)
 {
-    TASK **current_task = &task_list;
-
-    while (*current_task)
+    for (int index = 0; index < SCH_TASK_MAX_NUM; index++)
     {
-        if (!(*current_task)->suspendFlag && (*current_task)->runFlag > 0 && (*current_task)->pTask)
+        if (!task_array[index].suspendFlag && task_array[index].runFlag > 0 && task_array[index].pTask)
         {
             // 记录当前时间
             uint32_t now = get_system_ticks ? get_system_ticks() : 0;
-            (*current_task)->interval = now - (*current_task)->last_run_time;
-            (*current_task)->last_run_time = now;
+            task_array[index].interval = now - task_array[index].last_run_time;
+            task_array[index].last_run_time = now;
 
             // 执行任务
-            (*current_task)->pTask((void *)(*current_task)->arg);
-            (*current_task)->runFlag--;
+            (*task_array[index].pTask)((void *)task_array[index].arg); // 运行任务
+            task_array[index].runFlag--;                               // 复位/降低 runFlag 标志
 
-            // 判断是否需要删除一次性任务
-            if ((*current_task)->cycle == 0)
+            /* 如果是单次任务，将它从列表中删除 */
+            if (task_array[index].cycle == 0)
             {
-                TASK *temp = *current_task;
-                *current_task = (*current_task)->next; // 删除当前任务
-                free(temp);
-                task_count--; // 删除任务时减少任务数量
-                continue;     // 继续下一个任务
+                task_delete(index);
             }
         }
-
-        current_task = &(*current_task)->next;
     }
 }
 
@@ -255,15 +214,15 @@ int task_get_count(void)
 
 /**
  * @brief 获取任务运行间隔
- * @param task_handle 任务句柄
- * @retval 任务运行间隔，单位为毫秒
+ * @param task_index 任务索引
+ * @retval 任务运行间隔
  */
-uint32_t task_get_interval(TASK *task_handle)
+uint32_t task_get_interval(const int task_index)
 {
-    if (!task_handle)
+    if (task_index < 0 || task_index >= SCH_TASK_MAX_NUM)
     {
-        return 0;
+        return 0; // 任务索引无效返回 0
     }
 
-    return task_handle->interval;
+    return task_array[task_index].interval;
 }

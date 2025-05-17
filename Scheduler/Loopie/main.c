@@ -2,6 +2,9 @@
 #include "loopie_scheduler.h"
 
 uint32_t ticks = 0;
+int task1_index = -255;
+int task2_index = -255;
+int task3_index = -255;
 
 void task1(void *arg)
 {
@@ -81,25 +84,39 @@ int main()
 
     scheduler_init();
 
-    TASK *task1_handle = task_create(task1, (char *)"task1", 127, 1, 1);
-    if (task1_handle == NULL)
+    task1_index = task_create(task1, (char *)"task1", 1, 1);
+    if (task1_index < 0)
     {
         printf("task1 create failed\n");
         return -1;
     }
-    TASK *task2_handle = task_create(task2, (char *)"task2", 126, 1, 1);
-    if (task2_handle == NULL)
+    else
+    {
+        printf("task1 create success, task1 index = %d\n", task1_index);
+    }
+    task2_index = task_create(task2, (char *)"task2", 1, 0);
+    if (task2_index < 0)
     {
         printf("task2 create failed\n");
         return -1;
     }
+    else
+    {
+        printf("task2 create success, task2 index = %d\n", task2_index);
+    }
 
-    TASK *task3_handle = task_create(task3, (char *)"task3", 125, 1, 1);
-    if (task3_handle == NULL)
+    task3_index = task_create(task3, (char *)"task3", 1, 1);
+    if (task3_index < 0)
     {
         printf("task3 create failed\n");
         return -1;
     }
+    else
+    {
+        printf("task3 create success, task3 index = %d\n", task3_index);
+    }
+
+    printf("task count = %d\n", task_get_count());
 
     scheduler_start();
 
@@ -108,12 +125,17 @@ int main()
         scheduler_update();
         scheduler_run();
 
+        if (ticks == 1)
+        {
+            printf("task count: %d\n", task_get_count());
+        }
+
         if (ticks == 5)
         {
-            task_suspend(task1_handle);
+            task_suspend(task1_index);
 
             error_code_set(0);
-            error_code_set(1);
+            error_code_set(1); // 错误码不会覆盖一个周期内的
             warning_code_set(1);
             warning_code_set(2); // 警告会覆盖一个周期内的
         }
@@ -156,8 +178,8 @@ int main()
         }
         if (ticks == 11)
         {
-            int count_buf[SCH_MAX_EVENT_NUM];
-            for (int count = 0; count < SCH_MAX_EVENT_NUM; count++)
+            int count_buf[SCH_EVENT_MAX_NUM];
+            for (int count = 0; count < SCH_EVENT_MAX_NUM; count++)
             {
                 count_buf[count] = count;
                 event_post(buttonHandler3, &count_buf[count], EVENT_POST_DISCARD);
@@ -167,32 +189,18 @@ int main()
         if (ticks == 12)
         {
             printf("event queue free size: %d\n", event_queue_free_size());
-            task_resume(task1_handle);
+            task_resume(task1_index);
         }
         if (ticks == 15)
         {
-            task_delete(task1_handle);
-        }
-        if (ticks == 16)
-        {
-            if (task3_handle == NULL)
+            if(task_delete(task1_index) >= 0)
             {
-                printf("task3 create failed\n");
-            }
-            else
-            {
-                printf("task3 created\n");
+                printf("task1 deleted\n");
             }
         }
         if (ticks == 20)
         {
-            // task_delete_safe(&task3_handle);
-            printf("task count: %d\n", task_get_count());
-        }
-        if (ticks == 21)
-        {
-            printf("task count: %d\n", task_get_count());
-            if (task3_handle == NULL)
+            if (task_delete(task3_index) >= 0)
             {
                 printf("task3 deleted\n");
             }
@@ -200,6 +208,10 @@ int main()
             {
                 printf("task3 not deleted\n");
             }
+        }
+        if (ticks == 21)
+        {
+            printf("task count: %d\n", task_get_count());
         }
         if (ticks == 25)
         {

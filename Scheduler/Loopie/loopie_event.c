@@ -3,12 +3,12 @@
  * @brief   事件队列模块，实现事件的投递、处理等功能
  * @author  Jia Zhenyu
  * @date    2024-08-01
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 #include "loopie_event.h"
 #include "loopie_config.h"
-#include "loopie_scheduler.h"
+#include "loopie_critical.h"
 #include <stdint.h>
 #include <string.h>
 #include <stddef.h>
@@ -28,7 +28,7 @@ static inline int event_queue_empty(void)
  */
 static inline int event_queue_full(void)
 {
-    return (event_queue.in - event_queue.out) == SCH_MAX_EVENT_NUM;
+    return (event_queue.in - event_queue.out) == SCH_EVENT_MAX_NUM;
 }
 
 /**
@@ -122,7 +122,7 @@ int event_post_from_isr_default(void (*const pEvent)(void *))
  */
 uint32_t event_queue_free_size(void)
 {
-    return SCH_MAX_EVENT_NUM - (event_queue.in - event_queue.out);
+    return SCH_EVENT_MAX_NUM - (event_queue.in - event_queue.out);
 }
 
 /**

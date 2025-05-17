@@ -3,12 +3,11 @@
  * @brief   事件扩展模块，实现事件标志与带回调的事件标志处理功能
  * @author  Jia Zhenyu
  * @date    2024-08-01
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 #include "loopie_event_ex.h"
 #include "loopie_config.h"
-#include "loopie_scheduler.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -22,7 +21,7 @@ static EVENT_FLAG_CB event_flag_cb = {0};
  */
 int event_flag_set(const uint32_t flag_count)
 {
-    if (flag_count > SCH_MAX_EVENT_FLAG - 1)
+    if (flag_count > SCH_EVENT_MAX_FLAG - 1)
     {
         return -1;
     }
@@ -37,7 +36,7 @@ int event_flag_set(const uint32_t flag_count)
  */
 int event_flag_cb_set(const uint32_t flag_count)
 {
-    if (flag_count > SCH_MAX_EVENT_FLAG_CB - 1)
+    if (flag_count > SCH_EVENT_MAX_FLAG_CB - 1)
     {
         return -1;
     }
@@ -52,7 +51,7 @@ int event_flag_cb_set(const uint32_t flag_count)
  */
 int event_flag_clear(const uint32_t flag_count)
 {
-    if (flag_count > SCH_MAX_EVENT_FLAG - 1)
+    if (flag_count > SCH_EVENT_MAX_FLAG - 1)
     {
         return -1;
     }
@@ -67,7 +66,7 @@ int event_flag_clear(const uint32_t flag_count)
  */
 int event_flag_cb_clear(const uint32_t flag_count)
 {
-    if (flag_count > SCH_MAX_EVENT_FLAG_CB - 1)
+    if (flag_count > SCH_EVENT_MAX_FLAG_CB - 1)
     {
         return -1;
     }
@@ -82,7 +81,7 @@ int event_flag_cb_clear(const uint32_t flag_count)
  */
 uint8_t event_flag_get(const uint32_t flag_count)
 {
-    if (flag_count > SCH_MAX_EVENT_FLAG - 1)
+    if (flag_count > SCH_EVENT_MAX_FLAG - 1)
     {
         return 0;
     }
@@ -96,7 +95,7 @@ uint8_t event_flag_get(const uint32_t flag_count)
  */
 uint8_t event_flag_cb_get(const uint32_t flag_count)
 {
-    if (flag_count > SCH_MAX_EVENT_FLAG_CB - 1)
+    if (flag_count > SCH_EVENT_MAX_FLAG_CB - 1)
     {
         return 0;
     }
@@ -145,7 +144,7 @@ void event_flag_cb_set_callback(void (*const callback)(uint32_t))
  */
 void event_flag_cb_process(void)
 {
-    for (uint32_t i = 0; i < SCH_MAX_EVENT_FLAG_CB; i++)
+    for (uint32_t i = 0; i < SCH_EVENT_MAX_FLAG_CB; i++)
     {
         if (event_flag_cb_get(i))
         {

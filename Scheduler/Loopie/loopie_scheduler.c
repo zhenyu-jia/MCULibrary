@@ -3,11 +3,13 @@
  * @brief   调度器模块，实现任务调度、事件处理、错误与警告报告等功能
  * @author  Jia Zhenyu
  * @date    2024-08-01
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 #include "loopie_scheduler.h"
+#include "loopie_critical.h"
 #include <stddef.h>
+#include <stdint.h>
 
 static void (*idle_hook)(void) = NULL;           // 空闲钩子
 uint32_t (*get_system_ticks)(void) = NULL;       // 获取系统时间

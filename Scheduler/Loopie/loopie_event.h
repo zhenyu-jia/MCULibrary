@@ -3,7 +3,7 @@
  * @brief   事件队列模块头文件，声明事件队列结构体及相关操作函数
  * @author  Jia Zhenyu
  * @date    2024-08-01
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 #ifndef __LOOPIE_EVENT_H__
@@ -31,7 +31,7 @@ extern "C"
 
     typedef struct
     {
-        EVENT queue[SCH_MAX_EVENT_NUM];
+        EVENT queue[SCH_EVENT_MAX_NUM];
         uint32_t in;
         uint32_t out;
     } EVENT_QUEUE;

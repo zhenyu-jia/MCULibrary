@@ -8,7 +8,7 @@ Loopie 是一个轻量级的任务调度与事件管理系统，适用于嵌入�
 
 ## 主要特性
 
-- **任务管理**：支持优先级、延迟、周期、单次/周期任务，任务链表管理。
+- **任务管理**：支持延迟、周期、单次/周期任务。
 - **事件队列**：支持事件投递、覆盖/丢弃模式，支持中断安全。
 - **事件标志**：支持普通事件标志和带回调的事件标志。
 - **错误与警告管理**：支持错误码/警告码的设置、清除、报告。
@@ -20,28 +20,27 @@ Loopie 是一个轻量级的任务调度与事件管理系统，适用于嵌入�
 
 ```bash
 loopie_config.h         // 配置文件
+loopie_critical.h       // 临界区管理
 loopie_error.c/h        // 错误与警告处理
 loopie_event_ex.c/h     // 事件标志与回调
 loopie_event.c/h        // 事件队列
 loopie_scheduler.c/h    // 调度器
 loopie_task.c/h         // 任务管理
 main.c                  // 示例主程序
-.vscode/                // VSCode 配置
 ```
 
 ---
 
 ## 配置宏说明（摘自 [`loopie_config.h`](loopie_config.h)）
 
-- `SCH_MAX_TASK_NUM`：最大任务数量
-- `SCH_MAX_TASK_RUN_FLAG`：任务最大运行标志（最大可运行次数，防止 runFlag 溢出）
-- `SCH_USER_PRIORITY_MIN`/`SCH_USER_PRIORITY_MAX`：任务优先级范围（数值越小优先级越高）
+- `SCH_TASK_MAX_NUM`：最大任务数量
+- `SCH_TASK_MAX_RUN_FLAG`：任务最大运行标志（最大可运行次数，防止 runFlag 溢出）
 - `SCH_EVENT`：启用事件功能
-- `SCH_MAX_EVENT_NUM`：事件队列最大数量（必须为 2 的幂，决定事件队列长度）
+- `SCH_EVENT_MAX_NUM`：事件队列最大数量（必须为 2 的幂，决定事件队列长度）
 - `SCH_EVENT_MASK`：事件队列索引掩码（用于环形队列）
 - `SCH_EVENT_EX`：启用事件扩展
-- `SCH_MAX_EVENT_FLAG`：事件标志最大数量（普通事件标志位数）
-- `SCH_MAX_EVENT_FLAG_CB`：带回调事件标志最大数量
+- `SCH_EVENT_MAX_FLAG`：事件标志最大数量（普通事件标志位数）
+- `SCH_EVENT_MAX_FLAG_CB`：带回调事件标志最大数量
 - `SCH_REPORT_ERRORS`：启用错误代码报告
 - `SCH_REPORT_WARNINGS`：启用警告代码报告
 - `SCH_REPORT_WARNINGS_TICKS`：警告代码报告周期（单位：调度周期数）
@@ -54,15 +53,14 @@ main.c                  // 示例主程序
 
 ```c
 void task_init(void);
-TASK *task_create(void (*const pTask)(void *), void *const arg, const int8_t priority, const uint16_t delay, const uint16_t cycle);
-int task_delete(TASK *task_handle);
-int task_delete_safe(TASK **task_handle);
-int task_suspend(TASK *task_handle);
-int task_resume(TASK *task_handle);
+int task_create(void (*const pTask)(void *), void *const arg, const uint16_t delay, const uint16_t cycle);
+int task_delete(const int task_index);
+int task_suspend(const int task_index);
+int task_resume(const int task_index);
 void task_update(void);
 void task_run(void);
 int task_get_count(void);
-uint32_t task_get_interval(TASK *task_handle);
+uint32_t task_get_interval(const int task_index);
 ```
 
 ### 事件队列（[`loopie_event.h`](loopie_event.h)）
@@ -154,7 +152,7 @@ int main()
     scheduler_init();
 
     // 创建任务
-    TASK *task1_handle = task_create(task1, (char *)"task1", 127, 1, 1);
+    int task1_index = task_create(task1, (char *)"task1", 1, 1);
 
     scheduler_start();
 
@@ -217,7 +215,7 @@ warning_code_set(1);    // 设置警告码 1
 
 - **作者**: Jia Zhenyu
 - **日期**: 2024-08-01
-- **版本**: V1.0.0
+- **版本**: V1.1.0
 
 ---
 
