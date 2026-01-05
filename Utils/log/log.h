@@ -10,8 +10,8 @@
  * - 通过 `set_log_output` 函数可以设置自定义的日志输出函数。
  * - 在编译时可以定义 `_DEBUG` 来启用调试信息输出。
  *
- * @version 1.1.0
- * @date 2025-04-21
+ * @version 1.1.1
+ * @date 2025-04-22
  * @author [Jia Zhenyu]
  */
 
@@ -29,21 +29,8 @@
 #define LOG_LEVEL LOG_DEBUG
 #endif
 
-// #define RT_THREAD                   /* 使用的是否为 RT-Thread 环境 */
 #define ANSI_ESCAPE_SEQUENCES       /* 是否使用 ANSI 转义序列，即带颜色的输出 */
-#define LOG_BUF_SIZE    128         /* 输出 buffer 大小 */
-
-#ifdef RT_THREAD
-#include <rtthread.h>
-#endif
-
-#ifdef RT_THREAD
-/*  RT-Thread 环境则使用 rt_kprintf */
-#define LOG_PRINTF rt_kprintf
-#else
-/* 默认使用 printf */
-#define LOG_PRINTF printf
-#endif
+#define LOG_BUF_SIZE    256         /* 输出 buffer 大小 */
 
 /**
  * @brief 日志级别的枚举类型

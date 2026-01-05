@@ -12,7 +12,6 @@
 - **自定义输出**：支持通过回调函数自定义日志输出方式（如输出到文件、网络等）。
 - **调试模式**：通过定义 `_DEBUG` 宏启用调试信息输出。
 - **格式化日志**：支持格式化字符串输出日志内容。
-- **RT-Thread 支持**：在 RT-Thread 环境下，日志框架会自动使用 `rt_kprintf` 作为默认输出函数。
 - **颜色支持**：支持 ANSI 转义序列，为不同日志级别添加颜色（可选）。
 
 ---
@@ -37,7 +36,7 @@
 
 ### 2. 设置日志输出方式
 
-通过 `set_log_output` 函数设置自定义日志输出方式。如果不设置，默认使用 `printf` 输出日志。在 RT-Thread 环境下，默认使用 `rt_kprintf`。
+通过 `set_log_output` 函数设置自定义日志输出方式。如果不设置，默认使用 `printf` 输出日志。
 
 #### 示例：输出到控制台
 
@@ -97,30 +96,6 @@ log_printf(LOG_INFO, "This is an informational message.\n");
 log_printf(LOG_WARN, "This is a warning message.\n");
 log_printf(LOG_ERROR, "This is an error message.\n");
 log_printf(LOG_DEBUG, "This is a debug message.\n");
-```
-
----
-
-## RT-Thread 支持
-
-在启用了 `RT_THREAD` 宏的情况下，日志框架会自动适配 RT-Thread 环境：
-
-1. 默认使用 `rt_kprintf` 作为日志输出函数，无需额外设置。
-2. 用户仍然可以通过 `set_log_output` 函数自定义日志输出方式。
-3. 在多线程环境中，建议用户自行添加线程同步机制以确保日志输出的线程安全性。
-
-**启用方式**：
-
-在编译时定义 `RT_THREAD` 宏：
-
-```c
-#define RT_THREAD
-```
-
-或者通过编译器选项：
-
-```bash
-gcc -DRT_THREAD -o example_log example_log.c log.c
 ```
 
 ---
@@ -272,7 +247,7 @@ gcc -D_DEBUG -o example_log example_log.c log.c
 
 2. **线程安全**：当前实现未考虑线程安全。如果在多线程环境中使用，请自行添加同步机制。
 
-3. **缓冲区大小**：日志消息的缓冲区大小为 `LOG_BUF_SIZE`（默认 128 字节）。如果日志内容较长，请自行调整。
+3. **缓冲区大小**：日志消息的缓冲区大小为 `LOG_BUF_SIZE`（默认 256 字节）。如果日志内容较长，请自行调整。
 
 ---
 
@@ -308,6 +283,7 @@ set_log_output(log_to_multiple_targets);
 
 ## 更新日志
 
+- **v1.1.1**（2025-04-21）：取消了 **RT-Thread** 支持。
 - **v1.1.0**（2025-04-21）：添加 **颜色** 支持和 **RT-Thread** 支持，优化日志输出功能。
 - **v1.0.0**（2024-07-23）：初始版本发布。
 
@@ -316,8 +292,8 @@ set_log_output(log_to_multiple_targets);
 ## 作者信息
 
 - **作者**：Jia Zhenyu
-- **日期**：2025-04-21
-- **版本**：1.1.0
+- **日期**：2025-04-22
+- **版本**：1.1.1
 
 ---
 

@@ -9,15 +9,15 @@
  * 文件中的主要功能包括：
  * - `log_message`：记录日志消息，输出日志级别、函数名、行号及格式化的日志内容。
  * - `set_log_output`：设置自定义的日志输出函数，以便用户可以定制日志输出方式。
- * - `log_level_get`：根据日志级别获取对应的日志级别字符串（仅在 `_DEBUG` 被定义时有效）。
+ * - `get_log_level`：根据日志级别获取对应的日志级别字符串（仅在 `_DEBUG` 被定义时有效）。
  *
  * @note
  * - `log_message`：记录日志并输出到控制台或通过自定义函数输出。
  * - `set_log_output`：设置日志输出函数，可以替换默认的 `printf`。
- * - `log_level_get`：根据日志级别返回字符串描述，仅在调试模式下有效。
+ * - `get_log_level`：根据日志级别返回字符串描述，仅在调试模式下有效。
  *
- * @version 1.1.0
- * @date 2025-04-21
+ * @version 1.1.1
+ * @date 2025-04-22
  * @author [Jia Zhenyu]
  *
  * @par Example
@@ -54,13 +54,12 @@ static log_output_func log_output = NULL;
 /**
  * @brief 获取日志级别的字符串表示
  *
- * 这个函数根据日志级别返回相应的字符串描述。仅在 `_DEBUG` 被定义时有效。
+ * 这个函数根据日志级别返回相应的字符串描述。
  *
  * @param[in] level 日志级别
  * @return 日志级别的字符串描述
  */
-#ifdef _DEBUG
-static const char *log_level_get(LOGLEVEL level)
+static const char *get_log_level(LOGLEVEL level)
 {
     switch (level)
     {
@@ -76,7 +75,6 @@ static const char *log_level_get(LOGLEVEL level)
         return "UNKNOWN";
     }
 }
-#endif /* _DEBUG */
 
 /**
  * @brief 设置自定义日志输出函数
@@ -154,11 +152,11 @@ void log_message(LOGLEVEL level, const char *fun, const int line, const char *fm
 
     // 拼接日志消息，带颜色
     snprintf(log_buf, sizeof(log_buf), "%s[%s] [Fun:%s Line:%d] %s%s",
-             color_start, log_level_get(level), fun, line, buf, color_end);
+             color_start, get_log_level(level), fun, line, buf, color_end);
 #else
     /* 没有颜色输出，直接拼接日志消息 */
     snprintf(log_buf, sizeof(log_buf), "[%s] [Fun:%s Line:%d] %s",
-             log_level_get(level), fun, line, buf);
+             get_log_level(level), fun, line, buf);
 #endif /* ANSI_ESCAPE_SEQUENCES */
 
     if (log_output)
@@ -167,7 +165,7 @@ void log_message(LOGLEVEL level, const char *fun, const int line, const char *fm
     }
     else
     {
-        LOG_PRINTF("%s", log_buf);
+        printf("%s", log_buf);
     }
 #endif /* _DEBUG */
 }
