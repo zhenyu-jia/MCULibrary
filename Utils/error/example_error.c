@@ -22,6 +22,7 @@ void error_handle(ERRORType err)
 int main()
 {
     ERROR_HANDLE(-1, "An error occurred in main function.");
-
+    ERROR_HANDLE(-1, "An error occurred in main function. %s", "Additional info");
+    ERROR_CHECK(1 != 1, -2, "Check failed. Values are equal: %d and %d", 1, 1);
     return 0;
 }

@@ -3,7 +3,7 @@
  * @brief 错误处理源文件
  * @author Jia Zhenyu
  * @date 2025-05-05
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 #include <stdio.h>

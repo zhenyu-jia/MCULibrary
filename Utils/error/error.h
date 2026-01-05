@@ -3,7 +3,7 @@
  * @brief 错误处理头文件
  * @author Jia Zhenyu
  * @date 2025-05-05
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 #ifndef __ERROR_H__
@@ -15,6 +15,11 @@ extern "C"
 #endif
 
 #include <stdio.h>
+
+/* 可配置错误消息缓冲区大小，默认 256 字节 */
+#ifndef ERROR_MSG_BUFFER_SIZE
+#define ERROR_MSG_BUFFER_SIZE 256
+#endif
 
 /* 常用错误类型宏定义 */
 // 通用错误
@@ -53,23 +58,28 @@ extern "C"
 
     void error_handle(ERRORType err);
 
-#define ERROR_CHECK(expr, err_code, err_message)                                       \
-    do                                                                                 \
-    {                                                                                  \
-        if (expr)                                                                      \
-        {                                                                              \
-            ERRORType err = {err_code, err_message, __FILE__, __FUNCTION__, __LINE__}; \
-            error_handle(err);                                                         \
-            /* return; */                                                              \
-        }                                                                              \
+/* expr 为假时触发错误（断言风格），支持 printf 风格格式 */
+#define ERROR_CHECK(expr, err_code, fmt, ...)                                           \
+    do                                                                                  \
+    {                                                                                   \
+        if (!(expr))                                                                    \
+        {                                                                               \
+            char _err_msg_buf[ERROR_MSG_BUFFER_SIZE];                                   \
+            snprintf(_err_msg_buf, sizeof(_err_msg_buf), (fmt), ##__VA_ARGS__);         \
+            ERRORType err = {err_code, _err_msg_buf, __FILE__, __FUNCTION__, __LINE__}; \
+            error_handle(err);                                                          \
+        }                                                                               \
     } while (0)
 
-#define ERROR_HANDLE(err_code, err_message)                                        \
-    do                                                                             \
-    {                                                                              \
-        ERRORType err = {err_code, err_message, __FILE__, __FUNCTION__, __LINE__}; \
-        error_handle(err);                                                         \
-        /* return; */                                                              \
+/* 直接触发错误，支持 printf 风格格式，例如：                      \
+   ERROR_HANDLE(-1, "Something failed: %s", info) */                                \
+#define ERROR_HANDLE(err_code, fmt, ...)                                            \
+    do                                                                              \
+    {                                                                               \
+        char _err_msg_buf[ERROR_MSG_BUFFER_SIZE];                                   \
+        snprintf(_err_msg_buf, sizeof(_err_msg_buf), (fmt), ##__VA_ARGS__);         \
+        ERRORType err = {err_code, _err_msg_buf, __FILE__, __FUNCTION__, __LINE__}; \
+        error_handle(err);                                                          \
     } while (0)
 
 #ifdef __cplusplus
