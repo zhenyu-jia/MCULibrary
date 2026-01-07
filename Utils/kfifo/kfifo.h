@@ -11,12 +11,10 @@
  * - 支持固定大小和动态分配的 FIFO 缓冲区。
  * - 支持基本数据类型和自定义结构体类型。
  * - 提供基于记录（record）的 FIFO，用于存储变长数据。
- * - 提供线程安全的操作，支持自旋锁（spinlock）。
  * - 高效的内存使用，FIFO 大小必须为 2 的幂。
  *
  * 使用场景：
  * - 嵌入式系统中的数据缓冲，例如传感器数据采集。
- * - 多线程或多任务环境中的数据通信。
  * - 实时数据流处理，例如音视频数据缓冲。
  *
  * 设计特点：
@@ -27,21 +25,15 @@
  *
  * 注意事项：
  * - FIFO 的大小必须为 2 的幂。
- * - 在多线程环境中，使用自旋锁确保线程安全。
  * - 使用 `kfifo_reset` 或 `kfifo_reset_out` 时需确保没有其他线程正在访问 FIFO。
  *
- * @version 2.0.0
- * @date 2025-04-26
+ * @version 2.0.1
+ * @date 2025-04-27
  * @author Jia Zhenyu
  */
 
 #ifndef __KFIFO_H__
 #define __KFIFO_H__
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 
 #include <stdint.h>
 #include <stddef.h>
@@ -73,105 +65,21 @@ extern "C"
 
 /* 错误码定义 */
 #ifndef EINVAL // 无效的参数
-#define EINVAL (-1)
+#define EINVAL (1)
 #endif /* EINVAL */
 
 #ifndef ENOMEM // 内存不足
-#define ENOMEM (-2)
+#define ENOMEM (2)
 #endif /* ENOMEM */
 
-#define DEFINE_LOCK(lock) volatile int lock = 0
-
-#ifdef FREERTOS
-#include "FreeRTOS.h"
-#include "task.h"
-
-#define spin_lock(lock)                           \
-    do                                            \
-    {                                             \
-        while (__sync_lock_test_and_set(lock, 1)) \
-        {                                         \
-            taskYIELD(); /* 自旋时让出 CPU */     \
-        }                                         \
-    } while (0)
-
-#define spin_unlock(lock)                       \
-    do                                          \
-    {                                           \
-        __sync_lock_release(lock); /* 释放锁 */ \
-    } while (0)
-
-#define spin_lock_irqsave(lock, flags)            \
-    do                                            \
-    {                                             \
-        taskENTER_CRITICAL();                     \
-        while (__sync_lock_test_and_set(lock, 1)) \
-        {                                         \
-            taskYIELD(); /* 自旋时让出 CPU */     \
-        }                                         \
-    } while (0)
-
-#define spin_unlock_irqrestore(lock, flags) \
-    do                                      \
-    {                                       \
-        __sync_lock_release(lock);          \
-        taskEXIT_CRITICAL();                \
-    } while (0)
-
-#elif defined(RTTHREAD)
-
-#include <rtthread.h>
-
-#define spin_lock(lock)                             \
-    do                                              \
-    {                                               \
-        while (__sync_lock_test_and_set(lock, 1))   \
-        {                                           \
-            rt_thread_yield(); /* 自旋时让出 CPU */ \
-        }                                           \
-    } while (0)
-
-#define spin_unlock(lock)                       \
-    do                                          \
-    {                                           \
-        __sync_lock_release(lock); /* 释放锁 */ \
-    } while (0)
-
-#define spin_lock_irqsave(lock, flags)              \
-    do                                              \
-    {                                               \
-        rt_interrupt_enter();                       \
-        while (__sync_lock_test_and_set(lock, 1))   \
-        {                                           \
-            rt_thread_yield(); /* 自旋时让出 CPU */ \
-        }                                           \
-    } while (0)
-
-#define spin_unlock_irqrestore(lock, flags) \
-    do                                      \
-    {                                       \
-        __sync_lock_release(lock);          \
-        rt_interrupt_leave();               \
-    } while (0)
-
-#else
-
-// For no RTOS case, the spin lock operations are no-ops
-#define spin_lock(lock) ((void)0)
-#define spin_unlock(lock) ((void)0)
-#define spin_lock_irqsave(lock, flags) ((void)0)
-#define spin_unlock_irqrestore(lock, flags) ((void)0)
-
-#endif
-
-    struct __kfifo
-    {
-        unsigned int in;
-        unsigned int out;
-        unsigned int mask;
-        unsigned int esize;
-        void *data;
-    };
+struct __kfifo
+{
+    unsigned int in;
+    unsigned int out;
+    unsigned int mask;
+    unsigned int esize;
+    void *data;
+};
 
 #define __STRUCT_KFIFO_COMMON(datatype, recsize, ptrtype) \
     union                                                 \
@@ -202,10 +110,10 @@ extern "C"
 #define STRUCT_KFIFO_PTR(type) \
     struct __STRUCT_KFIFO_PTR(type, 0, type)
 
-    /*
-     * define compatibility "struct kfifo" for dynamic allocated fifos
-     */
-    struct kfifo __STRUCT_KFIFO_PTR(unsigned char, 0, void);
+/*
+ * define compatibility "struct kfifo" for dynamic allocated fifos
+ */
+struct kfifo __STRUCT_KFIFO_PTR(unsigned char, 0, void);
 
 #define STRUCT_KFIFO_REC_1(size) \
     struct __STRUCT_KFIFO(unsigned char, size, 1, void)
@@ -213,11 +121,11 @@ extern "C"
 #define STRUCT_KFIFO_REC_2(size) \
     struct __STRUCT_KFIFO(unsigned char, size, 2, void)
 
-    /*
-     * define kfifo_rec types
-     */
-    struct kfifo_rec_ptr_1 __STRUCT_KFIFO_PTR(unsigned char, 1, void);
-    struct kfifo_rec_ptr_2 __STRUCT_KFIFO_PTR(unsigned char, 2, void);
+/*
+ * define kfifo_rec types
+ */
+struct kfifo_rec_ptr_1 __STRUCT_KFIFO_PTR(unsigned char, 1, void);
+struct kfifo_rec_ptr_2 __STRUCT_KFIFO_PTR(unsigned char, 2, void);
 
 /*
  * helper macro to distinguish between real in place fifo where the fifo
@@ -280,17 +188,17 @@ extern "C"
         }                                                                         \
     }
 
-    static inline unsigned int __must_check
-    __kfifo_uint_must_check_helper(unsigned int val)
-    {
-        return val;
-    }
+static inline unsigned int __must_check
+__kfifo_uint_must_check_helper(unsigned int val)
+{
+    return val;
+}
 
-    static inline int __must_check
-    __kfifo_int_must_check_helper(int val)
-    {
-        return val;
-    }
+static inline int __must_check
+__kfifo_int_must_check_helper(int val)
+{
+    return val;
+}
 
 /**
  * kfifo_initialized - Check if the fifo is initialized
@@ -365,37 +273,6 @@ extern "C"
     ({                                         \
         typeof((fifo) + 1) __tmpq = (fifo);    \
         __tmpq->kfifo.in == __tmpq->kfifo.out; \
-    })
-
-/**
- * kfifo_is_empty_spinlocked - returns true if the fifo is empty using
- * a spinlock for locking
- * @fifo: address of the fifo to be used
- * @lock: spinlock to be used for locking
- */
-#define kfifo_is_empty_spinlocked(fifo, lock)  \
-    ({                                         \
-        unsigned long __flags;                 \
-        bool __ret;                            \
-        spin_lock_irqsave(lock, __flags);      \
-        __ret = kfifo_is_empty(fifo);          \
-        spin_unlock_irqrestore(lock, __flags); \
-        __ret;                                 \
-    })
-
-/**
- * kfifo_is_empty_spinlocked_noirqsave  - returns true if the fifo is empty
- * using a spinlock for locking, doesn't disable interrupts
- * @fifo: address of the fifo to be used
- * @lock: spinlock to be used for locking
- */
-#define kfifo_is_empty_spinlocked_noirqsave(fifo, lock) \
-    ({                                                  \
-        bool __ret;                                     \
-        spin_lock(lock);                                \
-        __ret = kfifo_is_empty(fifo);                   \
-        spin_unlock(lock);                              \
-        __ret;                                          \
     })
 
 /**
@@ -640,50 +517,6 @@ extern "C"
     })
 
 /**
- * kfifo_in_spinlocked - put data into the fifo using a spinlock for locking
- * @fifo: address of the fifo to be used
- * @buf: the data to be added
- * @n: number of elements to be added
- * @lock: pointer to the spinlock to use for locking
- *
- * This macro copies the given values buffer into the fifo and returns the
- * number of copied elements.
- */
-#define kfifo_in_spinlocked(fifo, buf, n, lock) \
-    ({                                          \
-        unsigned long __flags;                  \
-        unsigned int __ret;                     \
-        spin_lock_irqsave(lock, __flags);       \
-        __ret = kfifo_in(fifo, buf, n);         \
-        spin_unlock_irqrestore(lock, __flags);  \
-        __ret;                                  \
-    })
-
-/**
- * kfifo_in_spinlocked_noirqsave - put data into fifo using a spinlock for
- * locking, don't disable interrupts
- * @fifo: address of the fifo to be used
- * @buf: the data to be added
- * @n: number of elements to be added
- * @lock: pointer to the spinlock to use for locking
- *
- * This is a variant of kfifo_in_spinlocked() but uses spin_lock/unlock()
- * for locking and doesn't disable interrupts.
- */
-#define kfifo_in_spinlocked_noirqsave(fifo, buf, n, lock) \
-    ({                                                    \
-        unsigned int __ret;                               \
-        spin_lock(lock);                                  \
-        __ret = kfifo_in(fifo, buf, n);                   \
-        spin_unlock(lock);                                \
-        __ret;                                            \
-    })
-
-/* alias for kfifo_in_spinlocked, will be removed in a future release */
-#define kfifo_in_locked(fifo, buf, n, lock) \
-    kfifo_in_spinlocked(fifo, buf, n, lock)
-
-/**
  * kfifo_out - get data from the fifo
  * @fifo: address of the fifo to be used
  * @buf: pointer to the storage buffer
@@ -705,52 +538,6 @@ extern "C"
             struct __kfifo *__kfifo = &__tmp->kfifo;                                                        \
             (__recsize) ? __kfifo_out_r(__kfifo, __buf, __n, __recsize) : __kfifo_out(__kfifo, __buf, __n); \
         }))
-
-/**
- * kfifo_out_spinlocked - get data from the fifo using a spinlock for locking
- * @fifo: address of the fifo to be used
- * @buf: pointer to the storage buffer
- * @n: max. number of elements to get
- * @lock: pointer to the spinlock to use for locking
- *
- * This macro gets the data from the fifo and returns the numbers of elements
- * copied.
- */
-#define kfifo_out_spinlocked(fifo, buf, n, lock)   \
-    __kfifo_uint_must_check_helper(                \
-        ({                                         \
-            unsigned long __flags;                 \
-            unsigned int __ret;                    \
-            spin_lock_irqsave(lock, __flags);      \
-            __ret = kfifo_out(fifo, buf, n);       \
-            spin_unlock_irqrestore(lock, __flags); \
-            __ret;                                 \
-        }))
-
-/**
- * kfifo_out_spinlocked_noirqsave - get data from the fifo using a spinlock
- * for locking, don't disable interrupts
- * @fifo: address of the fifo to be used
- * @buf: pointer to the storage buffer
- * @n: max. number of elements to get
- * @lock: pointer to the spinlock to use for locking
- *
- * This is a variant of kfifo_out_spinlocked() which uses spin_lock/unlock()
- * for locking and doesn't disable interrupts.
- */
-#define kfifo_out_spinlocked_noirqsave(fifo, buf, n, lock) \
-    __kfifo_uint_must_check_helper(                        \
-        ({                                                 \
-            unsigned int __ret;                            \
-            spin_lock(lock);                               \
-            __ret = kfifo_out(fifo, buf, n);               \
-            spin_unlock(lock);                             \
-            __ret;                                         \
-        }))
-
-/* alias for kfifo_out_spinlocked, will be removed in a future release */
-#define kfifo_out_locked(fifo, buf, n, lock) \
-    kfifo_out_spinlocked(fifo, buf, n, lock)
 
 /**
  * kfifo_out_peek - gets some data from the fifo
@@ -817,56 +604,53 @@ extern "C"
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macro.
  */
-#define kfifo_out_linear_ptr(fifo, ptr, n)                               \
-    __kfifo_uint_must_check_helper(                                      \
-        ({                                                               \
-            typeof((fifo) + 1) ___tmp = (fifo);                          \
-            unsigned int ___tail;                                        \
-            unsigned int ___n = kfifo_out_linear(___tmp, &___tail, (n)); \
-            *(ptr) = ___tmp->kfifo.data + ___tail * kfifo_esize(___tmp); \
-            ___n;                                                        \
+#define kfifo_out_linear_ptr(fifo, ptr, n)                                                                        \
+    __kfifo_uint_must_check_helper(                                                                               \
+        ({                                                                                                        \
+            typeof((fifo) + 1) ___tmp = (fifo);                                                                   \
+            unsigned int ___tail;                                                                                 \
+            unsigned int ___n = kfifo_out_linear(___tmp, &___tail, (n));                                          \
+            /* *(ptr) = ___tmp->kfifo.data + ___tail * kfifo_esize(___tmp); */                                    \
+            *(ptr) = (typeof(___tmp->type))((unsigned char *)___tmp->kfifo.data + ___tail * kfifo_esize(___tmp)); \
+            ___n;                                                                                                 \
         }))
 
-    extern int __kfifo_alloc(struct __kfifo *fifo, unsigned int size,
-                             size_t esize);
+extern int __kfifo_alloc(struct __kfifo *fifo, unsigned int size,
+                         size_t esize);
 
-    extern void __kfifo_free(struct __kfifo *fifo);
+extern void __kfifo_free(struct __kfifo *fifo);
 
-    extern int __kfifo_init(struct __kfifo *fifo, void *buffer,
-                            unsigned int size, size_t esize);
+extern int __kfifo_init(struct __kfifo *fifo, void *buffer,
+                        unsigned int size, size_t esize);
 
-    extern unsigned int __kfifo_in(struct __kfifo *fifo,
-                                   const void *buf, unsigned int len);
+extern unsigned int __kfifo_in(struct __kfifo *fifo,
+                               const void *buf, unsigned int len);
 
-    extern unsigned int __kfifo_out(struct __kfifo *fifo,
-                                    void *buf, unsigned int len);
+extern unsigned int __kfifo_out(struct __kfifo *fifo,
+                                void *buf, unsigned int len);
 
-    extern unsigned int __kfifo_out_peek(struct __kfifo *fifo,
-                                         void *buf, unsigned int len);
+extern unsigned int __kfifo_out_peek(struct __kfifo *fifo,
+                                     void *buf, unsigned int len);
 
-    extern unsigned int __kfifo_out_linear(struct __kfifo *fifo,
-                                           unsigned int *tail, unsigned int n);
+extern unsigned int __kfifo_out_linear(struct __kfifo *fifo,
+                                       unsigned int *tail, unsigned int n);
 
-    extern unsigned int __kfifo_in_r(struct __kfifo *fifo,
-                                     const void *buf, unsigned int len, size_t recsize);
+extern unsigned int __kfifo_in_r(struct __kfifo *fifo,
+                                 const void *buf, unsigned int len, size_t recsize);
 
-    extern unsigned int __kfifo_out_r(struct __kfifo *fifo,
-                                      void *buf, unsigned int len, size_t recsize);
+extern unsigned int __kfifo_out_r(struct __kfifo *fifo,
+                                  void *buf, unsigned int len, size_t recsize);
 
-    extern unsigned int __kfifo_len_r(struct __kfifo *fifo, size_t recsize);
+extern unsigned int __kfifo_len_r(struct __kfifo *fifo, size_t recsize);
 
-    extern void __kfifo_skip_r(struct __kfifo *fifo, size_t recsize);
+extern void __kfifo_skip_r(struct __kfifo *fifo, size_t recsize);
 
-    extern unsigned int __kfifo_out_peek_r(struct __kfifo *fifo,
-                                           void *buf, unsigned int len, size_t recsize);
+extern unsigned int __kfifo_out_peek_r(struct __kfifo *fifo,
+                                       void *buf, unsigned int len, size_t recsize);
 
-    extern unsigned int __kfifo_out_linear_r(struct __kfifo *fifo,
-                                             unsigned int *tail, unsigned int n, size_t recsize);
+extern unsigned int __kfifo_out_linear_r(struct __kfifo *fifo,
+                                         unsigned int *tail, unsigned int n, size_t recsize);
 
-    extern unsigned int __kfifo_max_r(unsigned int len, size_t recsize);
-
-#ifdef __cplusplus
-}
-#endif
+extern unsigned int __kfifo_max_r(unsigned int len, size_t recsize);
 
 #endif /* __KFIFO_H__ */

@@ -15,20 +15,15 @@
  * - `__kfifo_len_r`：获取记录的长度。
  * - `__kfifo_skip_r`：跳过记录。
  *
- * 线程安全：
- * - 提供自旋锁（spinlock）支持，用于多线程环境下的同步。
- * - 在单线程环境中，自旋锁操作为空操作，避免不必要的开销。
- *
  * 设计限制：
  * - FIFO 的大小必须为 2 的幂。
  * - 不适用于内存非常有限的系统，因为动态分配需要额外的内存。
  *
  * 使用建议：
  * - 对于实时性要求较高的场景，建议使用静态分配的 FIFO。
- * - 在多线程环境中，建议使用自旋锁保护 FIFO 操作。
  *
- * @version 2.0.0
- * @date 2025-04-26
+ * @version 2.0.1
+ * @date 2025-04-27
  * @author Jia Zhenyu
  */
 
@@ -155,6 +150,8 @@ static void kfifo_copy_in(struct __kfifo *fifo, const void *src,
     unsigned int size = fifo->mask + 1;
     unsigned int esize = fifo->esize;
     unsigned int l;
+    unsigned char *data = (unsigned char *)fifo->data;
+    const unsigned char *s = (const unsigned char *)src;
 
     off &= fifo->mask;
     if (esize != 1)
@@ -167,8 +164,8 @@ static void kfifo_copy_in(struct __kfifo *fifo, const void *src,
 
     // memcpy(fifo->data + off, src, l);
     // memcpy(fifo->data, src + l, len - l);
-    memcpy((unsigned char *)fifo->data + off, src, l);
-    memcpy((unsigned char *)fifo->data, (unsigned char *)src + l, len - l);
+    memcpy(data + off, s, l);
+    memcpy(data, s + l, len - l);
     /*
      * make sure that the data in the fifo is up to date before
      * incrementing the fifo->in index counter
@@ -196,6 +193,8 @@ static void kfifo_copy_out(struct __kfifo *fifo, void *dst,
     unsigned int size = fifo->mask + 1;
     unsigned int esize = fifo->esize;
     unsigned int l;
+    unsigned char *data = (unsigned char *)fifo->data;
+    unsigned char *d = (unsigned char *)dst;
 
     off &= fifo->mask;
     if (esize != 1)
@@ -208,8 +207,8 @@ static void kfifo_copy_out(struct __kfifo *fifo, void *dst,
 
     // memcpy(dst, fifo->data + off, l);
     // memcpy(dst + l, fifo->data, len - l);
-    memcpy(dst, (unsigned char *)fifo->data + off, l);
-    memcpy((unsigned char *)dst + l, fifo->data, len - l);
+    memcpy(d, data + off, l);
+    memcpy(d + l, data, len - l);
     /*
      * make sure that the data is copied before
      * incrementing the fifo->out index counter
